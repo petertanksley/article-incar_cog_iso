@@ -21,8 +21,9 @@ hrs_labs <- hrs %>%
          race_ethn,
          edu,
          cog_2cat,
-         ad_pgs, 
          incar_ever, 
+         lone_scale_pro,
+         soc_iso_index_pro,
          stroke_ever,
          smoke_ever,
          apoe_info99_4ct,
@@ -53,8 +54,9 @@ hrs_labs <- hrs %>%
              age             = "Age",
              year            = "Study year",
              cog_2cat        = "Cognitive function",
-             ad_pgs          = "AD polygenic score",
-             incar_ever      = "Lifetime incarceration", 
+             incar_ever      = "Lifetime incarceration",
+             lone_scale_pro  = "Loneliness",
+             soc_iso_index_pro = "Social isolation",
              stroke_ever     = "History of stroke",
              smoke_ever      = "Ever smoker",
              apoe_info99_4ct = "APOE-4 count",
@@ -63,7 +65,7 @@ hrs_labs <- hrs %>%
 
 #time-independent variables
 tab1_top <- hrs_labs %>% 
-  select(-c(age, year, cog_2cat, stroke_ever, ad_pgs)) %>% 
+  select(-c(age, year, cog_2cat, stroke_ever, lone_scale_pro, soc_iso_index_pro)) %>% 
   # mutate(ad_pgs_blk = ifelse(race_ethn=="Black", ad_pgs, NA),
   #        ad_pgs_wht = ifelse(race_ethn=="White", ad_pgs, NA)) %>% 
   # var_labels(ad_pgs_blk = "Polygenic Index for AD (Black)",
@@ -86,7 +88,7 @@ tab1_top <- hrs_labs %>%
 
 #time-dependent variables
 tab1_bottom <- hrs_labs %>%
-  select(hhidpn, age, cog_2cat, stroke_ever, year, incar_ever) %>%
+  select(hhidpn, age, cog_2cat, stroke_ever, lone_scale_pro, soc_iso_index_pro, year, incar_ever) %>%
   mutate(year=as_factor(year)) %>%
   group_by(hhidpn) %>% 
   mutate(age=mean(as.double(age))) %>% 
@@ -94,7 +96,9 @@ tab1_bottom <- hrs_labs %>%
   ungroup() %>% 
   tbl_summary(by=incar_ever,
               type = list(age ~ "continuous",
-                          stroke_ever ~ "categorical"),
+                          stroke_ever ~ "categorical",
+                          lone_scale_pro ~ "continuous", 
+                          soc_iso_index_pro ~ "continuous"),
               statistic = all_continuous() ~ "{mean} ({sd})",
               include = -hhidpn,
               digits = all_continuous() ~ 2) %>%
@@ -122,7 +126,7 @@ cog_pval <- glmer(cog_2cat_num ~ factor(incar_ever) + (1|hhidpn),
   filter(term=="factor(incar_ever)Incarcerated") %>% 
   pull(p.value)
 # cog_pval
-# [1] 1.219479e-18
+# [1] 1.274484e-05
 
 strok_pval <- glmer(stroke_ever ~ factor(incar_ever) + (1|hhidpn), 
                   data=hrs, 
@@ -132,15 +136,33 @@ strok_pval <- glmer(stroke_ever ~ factor(incar_ever) + (1|hhidpn),
   filter(term=="factor(incar_ever)Incarcerated") %>% 
   pull(p.value)
 # strok_pval
-# [1] 0.2276284
+# [1] 0.3086792
+
+
+
+lone_pval <- lmerTest::lmer(lone_scale_pro ~ factor(incar_ever) + (1|hhidpn), 
+                    data=hrs) %>% 
+  tidy() %>%
+  filter(term=="factor(incar_ever)Incarcerated") %>%
+  pull(p.value)
+# lone_pval
+# [1] 1.572525e-05
+
+soc_iso_pval <- lmerTest::lmer(soc_iso_index_pro ~ factor(incar_ever) + (1|hhidpn), 
+                               data=hrs) %>% 
+  tidy() %>%
+  filter(term=="factor(incar_ever)Incarcerated") %>%
+  pull(p.value)
+# lone_pval
+# [1] 1.572525e-05
 
 #export .html table
 gtsave(as_gt(tab1_combined), "../output/results/tab1_descriptives.html")
 
-#export .docx table
-tab1_combined %>%
-  as_flex_table() %>%
-  flextable::save_as_docx(path="../output/results/tab1_descriptives.docx")
+# #export .docx table
+# tab1_combined %>%
+#   as_flex_table() %>%
+#   flextable::save_as_docx(path="../output/results/tab1_descriptives.docx")
 
 
 #=Table 2 - Main results=======================================================

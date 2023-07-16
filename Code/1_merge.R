@@ -11,8 +11,8 @@ cog_stat <- import(glue("{hrs_clean_dir}/dementia_status/dementia_status_clean.r
 incar   <- import(glue("{hrs_clean_dir}/incarceration/incarceration_cleaned.rds")) 
 
 #Meds: loneliness & social isolation
-lone <- import(glue("{hrs_clean_dir}/loneliness/loneliness_clean.rds"))
-soc_iso <- import(glue("{hrs_clean_dir}/social_isolation/social_iso_clean.rds")) 
+lone <- import(glue("{hrs_clean_dir}/loneliness/loneliness_clean.rds")) %>% select(hhidpn, year, lone_scale_pro)
+soc_iso <- import(glue("{hrs_clean_dir}/social_isolation/social_iso_clean.rds")) %>% select(hhidpn, year, soc_iso_index_pro)
 
 #CVs: demographics; APOE status; history of stroke; social origins; educational attainment; smoking status
 demo     <- import(glue("{hrs_clean_dir}/demographics/demo_cleaned.rds"))           
