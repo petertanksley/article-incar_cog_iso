@@ -11,7 +11,7 @@ set_gtsummary_theme(theme_gtsummary_compact())
 
 #=Table 1 - Descriptives=======================================================
 
-#generate descriptives table
+#=organize data/create labs
 hrs_labs <- hrs %>% 
   select(hhidpn,
          study, 
@@ -22,8 +22,10 @@ hrs_labs <- hrs %>%
          edu,
          cog_2cat,
          incar_ever, 
-         lone_scale_pro,
-         soc_iso_index_pro,
+         lone_class,
+         lone_scale_pro_cat,
+         soc_iso_class,
+         soc_iso_index_pro_cat,
          stroke_ever,
          smoke_ever,
          apoe_info99_4ct,
@@ -55,8 +57,10 @@ hrs_labs <- hrs %>%
              year            = "Study year",
              cog_2cat        = "Cognitive function",
              incar_ever      = "Lifetime incarceration",
-             lone_scale_pro  = "Loneliness",
-             soc_iso_index_pro = "Social isolation",
+             lone_class      = "Loneliness",
+             lone_scale_pro_cat = "Loneliness",
+             soc_iso_class   = "Social isolation",
+             soc_iso_index_pro_cat = "Social isolation",
              stroke_ever     = "History of stroke",
              smoke_ever      = "Ever smoker",
              apoe_info99_4ct = "APOE-4 count",
@@ -65,30 +69,26 @@ hrs_labs <- hrs %>%
 
 #time-independent variables
 tab1_top <- hrs_labs %>% 
-  select(-c(age, year, cog_2cat, stroke_ever, lone_scale_pro, soc_iso_index_pro)) %>% 
-  # mutate(ad_pgs_blk = ifelse(race_ethn=="Black", ad_pgs, NA),
-  #        ad_pgs_wht = ifelse(race_ethn=="White", ad_pgs, NA)) %>% 
-  # var_labels(ad_pgs_blk = "Polygenic Index for AD (Black)",
-  #            ad_pgs_wht = "Polygenic Index for AD (White)") %>% 
+  select(hhidpn, study, sex, race_ethn, edu, smoke_ever, apoe_info99_4ct, 
+         social_origins,incar_ever) %>% 
   distinct(hhidpn, .keep_all=TRUE) %>% 
-  select(-c(hhidpn, 
-            # ad_pgs
-            )) %>% 
-  tbl_summary(by=incar_ever,
-              type = list(c(#ad_pgs_blk, ad_pgs_wht, 
-                            social_origins) ~ "continuous",
-                          c(study, sex, race_ethn, edu, apoe_info99_4ct, smoke_ever) ~ "categorical"),
+  tbl_summary(include = -hhidpn,
+              by=incar_ever,
+              type = list(c(social_origins) ~ "continuous",
+                c(study, sex, race_ethn, edu, apoe_info99_4ct, smoke_ever) ~ "categorical"),
               statistic = all_continuous() ~ "{mean} ({sd})") %>% 
   add_p() %>% 
   bold_p() %>% 
   add_overall() %>% 
   modify_header(label ~ "**Variable**") %>%
   modify_spanning_header(c("stat_1", "stat_2") ~ "**Ever incarcerated?**") 
-  # remove_row_type(variables = c(ad_pgs_blk, ad_pgs_wht), type = "missing")
+# remove_row_type(variables = c(ad_pgs_blk, ad_pgs_wht), type = "missing")
 
 #time-dependent variables
 tab1_bottom <- hrs_labs %>%
-  select(hhidpn, age, cog_2cat, stroke_ever, lone_scale_pro, soc_iso_index_pro, year, incar_ever) %>%
+  select(hhidpn, age, cog_2cat, stroke_ever, lone_scale_pro_cat, soc_iso_index_pro_cat,
+         year, incar_ever
+         ) %>%
   mutate(year=as_factor(year)) %>%
   group_by(hhidpn) %>% 
   mutate(age=mean(as.double(age))) %>% 
@@ -96,32 +96,30 @@ tab1_bottom <- hrs_labs %>%
   ungroup() %>% 
   tbl_summary(by=incar_ever,
               type = list(age ~ "continuous",
-                          stroke_ever ~ "categorical",
-                          lone_scale_pro ~ "continuous", 
-                          soc_iso_index_pro ~ "continuous"),
+                          stroke_ever ~ "categorical"),
               statistic = all_continuous() ~ "{mean} ({sd})",
               include = -hhidpn,
               digits = all_continuous() ~ 2) %>%
-  add_p(include=-c(stroke_ever, cog_2cat)) %>%
+  add_p(include=-c(stroke_ever, cog_2cat, lone_scale_pro_cat, soc_iso_index_pro_cat)) %>%
   bold_p() %>% 
   add_overall() %>%
   modify_header(label ~ "**Variable**") %>% 
   modify_spanning_header(c("stat_1", "stat_2") ~ "**Ever incarcerated?**") 
-  
+
 
 #stack tables
 tab1_combined <- tbl_stack(tbls = list(tab1_top, tab1_bottom),
-          group_header = c(glue("Individuals (N = {style_number(cases,big.mark=',')})"), 
-                           glue("Observations (N = {style_number(obs,big.mark=',')})"))) %>% 
+                           group_header = c(glue("Individuals (N = {style_number(cases,big.mark=',')})"), 
+                                            glue("Observations (N = {style_number(obs,big.mark=',')})"))) %>% 
   modify_caption('**Table 1**. Individual and observation-level descriptive statistics of the Health and Retirement Study.')
 tab1_combined
 
 
 #get pvalues for cognitive status and history of stroke
 cog_pval <- glmer(cog_2cat_num ~ factor(incar_ever) + (1|hhidpn), 
-      data=hrs, 
-      family=binomial, 
-      control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5))) %>% 
+                  data=hrs, 
+                  family=binomial, 
+                  control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5))) %>% 
   tidy() %>% 
   filter(term=="factor(incar_ever)Incarcerated") %>% 
   pull(p.value)
@@ -129,9 +127,9 @@ cog_pval <- glmer(cog_2cat_num ~ factor(incar_ever) + (1|hhidpn),
 # [1] 1.274484e-05
 
 strok_pval <- glmer(stroke_ever ~ factor(incar_ever) + (1|hhidpn), 
-                  data=hrs, 
-                  family=binomial, 
-                  control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5))) %>% 
+                    data=hrs, 
+                    family=binomial, 
+                    control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5))) %>% 
   tidy() %>% 
   filter(term=="factor(incar_ever)Incarcerated") %>% 
   pull(p.value)
@@ -140,16 +138,20 @@ strok_pval <- glmer(stroke_ever ~ factor(incar_ever) + (1|hhidpn),
 
 
 
-lone_pval <- lmerTest::lmer(lone_scale_pro ~ factor(incar_ever) + (1|hhidpn), 
-                    data=hrs) %>% 
+lone_pval <- glmer(lone_scale_pro_cat ~ factor(incar_ever) + (1|hhidpn), 
+                   data=hrs,
+                   family = binomial(),
+                   control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)) ) %>% 
   tidy() %>%
   filter(term=="factor(incar_ever)Incarcerated") %>%
   pull(p.value)
 # lone_pval
 # [1] 1.572525e-05
 
-soc_iso_pval <- lmerTest::lmer(soc_iso_index_pro ~ factor(incar_ever) + (1|hhidpn), 
-                               data=hrs) %>% 
+soc_iso_pval <- glmer(soc_iso_index_pro_cat ~ factor(incar_ever) + (1|hhidpn), 
+                      data=hrs,
+                      family = binomial(),
+                      control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)) ) %>% 
   tidy() %>%
   filter(term=="factor(incar_ever)Incarcerated") %>%
   pull(p.value)

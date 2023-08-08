@@ -11,8 +11,8 @@ cog_stat <- import(glue("{hrs_clean_dir}/dementia_status/dementia_status_clean.r
 incar   <- import(glue("{hrs_clean_dir}/incarceration/incarceration_cleaned.rds")) 
 
 #Meds: loneliness & social isolation
-lone <- import(glue("{hrs_clean_dir}/loneliness/loneliness_clean.rds")) %>% select(hhidpn, year, lone_scale_pro)
-soc_iso <- import(glue("{hrs_clean_dir}/social_isolation/social_iso_clean.rds")) %>% select(hhidpn, year, soc_iso_index_pro)
+lone <- import(glue("{hrs_clean_dir}/loneliness/loneliness_clean.rds")) %>% select(-n_nomiss)
+soc_iso <- import(glue("{hrs_clean_dir}/social_isolation/social_iso_clean.rds")) %>% select(-n_nomiss)
 
 #CVs: demographics; APOE status; history of stroke; social origins; educational attainment; smoking status
 demo     <- import(glue("{hrs_clean_dir}/demographics/demo_cleaned.rds"))           
@@ -67,8 +67,8 @@ hrs_merged_studyvars <- hrs_merged %>%
          dod_yr, alive,
          cogfunction,
          incar_ever, incar_time_3cat,
-         lone_scale_pro, 
-         soc_iso_index_pro,
+         lone_scale_pro, lone_scale_pro_cat, starts_with("lone"),
+         soc_iso_index_pro, soc_iso_index_pro_cat, ends_with("_bin"),
          stroke_ever,
          apoe_info99_4ct,
          social_origins,
@@ -78,20 +78,20 @@ hrs_merged_studyvars <- hrs_merged %>%
          # income_hh,
          ) %>% 
   # filter(race_ethn %in% c("White", "Black")) %>% 
-  filter(firstiw<=year) %>% #removed 255,512 rows (27%), 704,836 rows remaining
-  filter(as_numeric(dod_yr)>=year | is.na(dod_yr)) %>% #removed 118,886 rows (17%), 585,950 rows remaining
-  filter(as_numeric(dod_yr)>2012 | is.na(dod_yr))  #removed 88,183 rows (15%), 497,767 rows remaining
+  filter(firstiw<=year) %>% #removed 255,511 rows (32%), 532,214 rows remaining
+  filter(as_numeric(dod_yr)>=year | is.na(dod_yr)) %>% #removed 118,886 rows (22%), 413,328 rows remaining
+  filter(as_numeric(dod_yr)>2012 | is.na(dod_yr))  #removed 88,183 rows (21%), 325,145 rows remaining
   # select(-firstiw)
 #drop rows with missing on all columns (ignore time-stable variables)
 var_list <- c("cogfunction",
-              "incar_ever", "incar_time_3cat",
+              "incar_ever", 
               "lone_scale_pro",
               "soc_iso_index_pro",
               "stroke_ever", "smoke_ever",
               "apoe_info99_4ct")
 
 hrs_merged_studyvars_sparse <- hrs_merged_studyvars %>% 
-  filter(!if_all(all_of(var_list), is.na)) #removed 720 rows (<1%), 497,047 rows remaining
+  filter(!if_all(all_of(var_list), is.na)) #removed 532 rows (<1%), 324,613 rows remaining
 
 #export final merged dataframe
 export(hrs_merged_studyvars_sparse, "hrs_merged.rds")
