@@ -16,9 +16,9 @@ hrs <- import("hrs_full_analytic_surv.rds")
 
 #=Step 1 - total effect model==================================================
 cox1 <- coxph(Surv(event=cog_ever, time = cog_surv_age) ~ factor(incar_ever) +
-                factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
+                scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) +
                 factor(smoke_ever) + factor(stroke_ever) +
-                strata(study), 
+                strata(study),
               data=hrs, id=hhidpn)
 tidy(cox1, exponentiate = TRUE)
 
@@ -28,27 +28,27 @@ tidy(cox1, exponentiate = TRUE)
 
 #lone <- incar
 med_lone <- lm(scale(lonely_pro_m) ~ factor(incar_ever) +
-                 factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
-                 factor(smoke_ever) + factor(stroke_ever) + factor(study), 
+                 scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) +
+                 factor(smoke_ever) + factor(stroke_ever) + factor(study),
                data=hrs)
 med_lone_res <- tidy(med_lone)
 
 #soc_iso <- incar
 med_soc_iso <- lm(scale(soc_iso_pro_m) ~ factor(incar_ever) +
-                    factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
-                    factor(smoke_ever) + factor(stroke_ever) + factor(study), 
+                    scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) +
+                    factor(smoke_ever) + factor(stroke_ever) + factor(study),
                   data=hrs)
 med_soc_iso_res <- tidy(med_soc_iso)
 
 #=Step 3 - test independence of mediators======================================
 #(this is only needed for testing multiple paths simultaneously)
 
-#lone <- soc_iso + incar 
+#lone <- soc_iso + incar
 med_loneXsoc_iso <- lm(scale(lonely_pro_m) ~ scale(soc_iso_pro_m) + factor(incar_ever) +
-                         factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
-                         factor(smoke_ever) + factor(stroke_ever) + factor(study), 
+                         scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) +
+                         factor(smoke_ever) + factor(stroke_ever) + factor(study),
                        data=hrs)
-med_loneXsoc_iso_res <- tidy(med_loneXsoc_iso) 
+med_loneXsoc_iso_res <- tidy(med_loneXsoc_iso)
 
 #highly sig. effect for soc_iso on loneliness
 #this indicates that the mediators are "intertwined". Estimation of indirect effects
@@ -69,7 +69,7 @@ doEffectDecomp_lonely = function(data, index) {
   
   #mediator model
   med <- paste0("scale(lonely_pro_m)")
-  covars <- c("factor(incar_ever)", "factor(sex)","factor(race_ethn)","factor(edu)",
+  covars <- c("factor(incar_ever)", "scale(age_base)", "factor(sex)","factor(race_ethn)","factor(edu)",
               "scale(social_origins)","factor(smoke_ever)","factor(stroke_ever)","factor(study)")
   formula <- paste(med, "~", paste(covars, collapse = "+"))
   
@@ -84,7 +84,7 @@ doEffectDecomp_lonely = function(data, index) {
   
   #fit weighted model
   cox <- coxph(Surv(event = cog_ever, time = cog_surv_age) ~ factor(incar_ever1) + factor(incar_ever0) + 
-                 factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
+                 scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
                  factor(smoke_ever) + factor(stroke_ever) + strata(study),
                data = exp_data, weights = m_weights)
   
@@ -108,7 +108,7 @@ doEffectDecomp_soc_iso = function(data, index) {
   dat <- data[index,]
   #mediator model
   med <- paste0("scale(soc_iso_pro_m)")
-  covars <- c("factor(incar_ever)", "factor(sex)","factor(race_ethn)","factor(edu)",
+  covars <- c("factor(incar_ever)", "scale(age_base)", "factor(sex)","factor(race_ethn)","factor(edu)",
               "scale(social_origins)","factor(smoke_ever)","factor(stroke_ever)","factor(study)")
   formula <- paste(med, "~", paste(covars, collapse = "+"))
   
@@ -123,7 +123,7 @@ doEffectDecomp_soc_iso = function(data, index) {
   
   #fit weighted model
   cox <- coxph(Surv(event = cog_ever, time = cog_surv_age) ~ factor(incar_ever1) + factor(incar_ever0) + 
-                 factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
+                 scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
                  factor(smoke_ever) + factor(stroke_ever) + strata(study),
                data = exp_data, weights = m_weights)
   
@@ -148,7 +148,78 @@ boot_lonely_ci  <- tidy(boot_lonely,  conf.int = TRUE, conf.method = "perc")
 boot_soc_iso_ci <- tidy(boot_soc_iso, conf.int = TRUE, conf.method = "perc")
 
 export(boot_lonely_ci, "../output/results/res_mediation_lonely.csv")
-export(boot_soc_iso_ci, "../output/results/res_mediation_lonely.csv")
+export(boot_soc_iso_ci, "../output/results/res_mediation_soc_iso.csv")
+
+#=Sensitivity analyses=========================================================
+
+#=Test 1: non-linearities, interactions in mediator models=====================
+#lone <- incar
+med_lone <- lm(scale(lonely_pro_m) ~ factor(incar_ever) * 
+                 (scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) +
+                    factor(smoke_ever) + factor(stroke_ever) + factor(study)) + I(age_base^2),
+               data=hrs)
+med_lone_res <- tidy(med_lone)
+
+#soc_iso <- incar
+med_soc_iso <- lm(scale(soc_iso_pro_m) ~ factor(incar_ever) * 
+                    (scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) +
+                       factor(smoke_ever) + factor(stroke_ever) + factor(study)) + I(age_base^2),
+                  data=hrs)
+med_soc_iso_res <- tidy(med_soc_iso)
+
+#=Test 2: visually inspect Scheonfeld residuals================================
+
+#main model
+cox <- coxph(Surv(event = cog_ever, time = cog_surv_age) ~ factor(incar_ever) +  
+               scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
+               factor(smoke_ever) + factor(stroke_ever) + strata(study),
+             data = hrs)
+cox.zph(cox) %>% ggcoxzph()
+
+#social isolation model
+med <- paste0("scale(soc_iso_pro_m)")
+covars <- c("factor(incar_ever)", "scale(age_base)", "factor(sex)","factor(race_ethn)","factor(edu)",
+            "scale(social_origins)","factor(smoke_ever)","factor(stroke_ever)","factor(study)")
+formula <- paste(med, "~", paste(covars, collapse = "+"))
+
+#expand data
+m_mod <- glm(as.formula(formula),
+             family = gaussian(),
+             data=hrs)
+exp_data <- neWeight(m_mod)
+
+#extract weights
+m_weights <- weights(exp_data)
+
+#fit weighted model
+cox <- coxph(Surv(event = cog_ever, time = cog_surv_age) ~ factor(incar_ever1) + factor(incar_ever0) + 
+               scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
+               factor(smoke_ever) + factor(stroke_ever) + strata(study),
+             data = exp_data, weights = m_weights)
+cox.zph(cox) %>% ggcoxzph()
+
+
+#loneliness model
+med <- paste0("scale(lonely_pro_m)")
+covars <- c("factor(incar_ever)", "scale(age_base)", "factor(sex)","factor(race_ethn)","factor(edu)",
+            "scale(social_origins)","factor(smoke_ever)","factor(stroke_ever)","factor(study)")
+formula <- paste(med, "~", paste(covars, collapse = "+"))
+
+#expand data
+m_mod <- glm(as.formula(formula),
+             family = gaussian(),
+             data=hrs)
+exp_data <- neWeight(m_mod)
+
+#extract weights
+m_weights <- weights(exp_data)
+
+#fit weighted model
+cox <- coxph(Surv(event = cog_ever, time = cog_surv_age) ~ factor(incar_ever1) + factor(incar_ever0) + 
+               scale(age_base) + factor(sex) + factor(race_ethn) + factor(edu) + scale(social_origins) + 
+               factor(smoke_ever) + factor(stroke_ever) + strata(study),
+             data = exp_data, weights = m_weights)
+cox.zph(cox) %>% ggcoxzph()
 
 #=END==========================================================================
 
